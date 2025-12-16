@@ -1,0 +1,2685 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>加密貨幣回測框架</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-tertiary: #1a1a26;
+            --accent-gold: #f0b90b;
+            --accent-gold-dim: rgba(240, 185, 11, 0.15);
+            --profit: #00d4aa;
+            --loss: #ff4757;
+            --text-primary: #ffffff;
+            --text-secondary: #8a8a9a;
+            --border: #2a2a3a;
+        }
+        
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            background-image: 
+                radial-gradient(ellipse at 20% 20%, rgba(240, 185, 11, 0.03) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(0, 212, 170, 0.02) 0%, transparent 50%);
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 30px;
+        }
+        
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .logo-icon {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, var(--accent-gold), #ff9500);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        
+        .logo h1 {
+            font-size: 1.8em;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-gold), #fff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .logo span {
+            font-size: 0.75em;
+            color: var(--text-secondary);
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        .main-grid {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 30px;
+        }
+        
+        .panel {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 25px;
+        }
+        
+        .panel-title {
+            font-size: 0.85em;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--accent-gold);
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            font-size: 0.9em;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+        
+        select, input {
+            width: 100%;
+            padding: 12px 15px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.95em;
+            transition: all 0.2s;
+        }
+        
+        select:focus, input:focus {
+            outline: none;
+            border-color: var(--accent-gold);
+            box-shadow: 0 0 0 3px var(--accent-gold-dim);
+        }
+        
+        .strategy-card {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .strategy-card:hover {
+            border-color: var(--accent-gold);
+            transform: translateY(-2px);
+        }
+        
+        .strategy-card.active {
+            border-color: var(--accent-gold);
+            background: var(--accent-gold-dim);
+        }
+        
+        .strategy-card h4 {
+            font-size: 1em;
+            margin-bottom: 5px;
+        }
+        
+        .strategy-card p {
+            font-size: 0.8em;
+            color: var(--text-secondary);
+        }
+        
+        .strategy-params {
+            display: none;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid var(--border);
+        }
+        
+        .strategy-card.active .strategy-params {
+            display: block;
+        }
+        
+        .strategy-category {
+            font-size: 0.8em;
+            font-weight: 600;
+            color: var(--accent-gold);
+            margin: 20px 0 10px 0;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .strategy-category:first-of-type {
+            margin-top: 0;
+        }
+        
+        .param-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .param-row input {
+            flex: 1;
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-gold), #ff9500);
+            color: #000;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(240, 185, 11, 0.3);
+        }
+        
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .results-area {
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+        }
+        
+        .stat-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .stat-card .label {
+            font-size: 0.8em;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+        }
+        
+        .stat-card .value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.5em;
+            font-weight: 700;
+        }
+        
+        .stat-card .value.profit { color: var(--profit); }
+        .stat-card .value.loss { color: var(--loss); }
+        
+        .chart-container {
+            position: relative;
+            height: 400px;
+        }
+        
+        .trades-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85em;
+        }
+        
+        .trades-table th {
+            text-align: left;
+            padding: 12px;
+            border-bottom: 2px solid var(--border);
+            color: var(--text-secondary);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-size: 0.8em;
+        }
+        
+        .trades-table td {
+            padding: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .trades-table tr:hover {
+            background: var(--bg-tertiary);
+        }
+        
+        .tag {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+        
+        .tag.buy {
+            background: rgba(0, 212, 170, 0.15);
+            color: var(--profit);
+        }
+        
+        .tag.sell {
+            background: rgba(255, 71, 87, 0.15);
+            color: var(--loss);
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 60px;
+        }
+        
+        .loading.active {
+            display: block;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid var(--border);
+            border-top-color: var(--accent-gold);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .progress-bar {
+            height: 4px;
+            background: var(--bg-tertiary);
+            border-radius: 2px;
+            margin-top: 15px;
+            overflow: hidden;
+        }
+        
+        .progress-bar .fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-gold), var(--profit));
+            width: 0%;
+            transition: width 0.3s;
+        }
+        
+        .hidden { display: none !important; }
+        
+        .table-scroll {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .table-scroll::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .table-scroll::-webkit-scrollbar-track {
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+        }
+        
+        .table-scroll::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 4px;
+        }
+        
+        .table-scroll::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-gold);
+        }
+        
+        @media (max-width: 1200px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        @media (max-width: 600px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            .container {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">
+                <div class="logo-icon">⚡</div>
+                <div>
+                    <h1>CryptoBacktest</h1>
+                    <span>v1.0 | Binance USDT Market</span>
+                </div>
+            </div>
+        </header>
+        
+        <div class="main-grid">
+            <!-- 左側控制面板 -->
+            <div class="control-panel">
+                <div class="panel">
+                    <div class="panel-title">📊 市場設定</div>
+                    
+                    <div class="form-group">
+                        <label>交易對</label>
+                        <select id="symbol">
+                            <option value="BTCUSDT">BTC/USDT</option>
+                            <option value="ETHUSDT">ETH/USDT</option>
+                            <option value="BNBUSDT">BNB/USDT</option>
+                            <option value="ADAUSDT">ADA/USDT</option>
+                            <option value="SOLUSDT">SOL/USDT</option>
+                            <option value="XRPUSDT">XRP/USDT</option>
+                            <option value="DOGEUSDT">DOGE/USDT</option>
+                            <option value="DOTUSDT">DOT/USDT</option>
+                            <option value="AVAXUSDT">AVAX/USDT</option>
+                            <option value="MATICUSDT">MATIC/USDT</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>K線週期</label>
+                        <select id="interval">
+                            <option value="1h">1 小時</option>
+                            <option value="4h" selected>4 小時</option>
+                            <option value="1d">1 天</option>
+                            <option value="1w">1 週</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>回測起始時間</label>
+                        <select id="startTime">
+                            <option value="30">最近 30 天</option>
+                            <option value="90">最近 90 天</option>
+                            <option value="180">最近 180 天</option>
+                            <option value="365">最近 1 年</option>
+                            <option value="730">最近 2 年</option>
+                            <option value="1095">最近 3 年</option>
+                            <option value="1825">最近 5 年</option>
+                            <option value="2017" selected>從 2017 年開始</option>
+                            <option value="2018">從 2018 年開始</option>
+                            <option value="2019">從 2019 年開始</option>
+                            <option value="2020">從 2020 年開始</option>
+                            <option value="2021">從 2021 年開始</option>
+                            <option value="2022">從 2022 年開始</option>
+                            <option value="2023">從 2023 年開始</option>
+                            <option value="2024">從 2024 年開始</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>初始資金 (USDT)</label>
+                        <input type="number" id="capital" value="10000" min="100">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>手續費率 (%)</label>
+                        <input type="number" id="fee" value="0.1" min="0" max="1" step="0.01">
+                    </div>
+                </div>
+                
+                <div class="panel" style="margin-top: 20px; max-height: 600px; overflow-y: auto;">
+                    <div class="panel-title">🎯 選擇策略</div>
+                    
+                    <div class="strategy-category">📈 趨勢跟隨策略</div>
+                    
+                    <div class="strategy-card active" data-strategy="sma_cross">
+                        <h4>SMA 均線交叉</h4>
+                        <p>短期均線上穿長期均線買入，下穿賣出</p>
+                        <div class="strategy-params">
+                            <div class="param-row">
+                                <input type="number" id="sma_short" value="10" min="2" placeholder="短期">
+                                <input type="number" id="sma_long" value="30" min="5" placeholder="長期">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="strategy-card" data-strategy="ema_cross">
+                        <h4>EMA 均線交叉</h4>
+                        <p>使用指數移動平均線，對近期價格更敏感</p>
+                        <div class="strategy-params">
+                            <div class="param-row">
+                                <input type="number" id="ema_short" value="12" min="2" placeholder="短期">
+                                <input type="number" id="ema_long" value="26" min="5" placeholder="長期">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="strategy-card" data-strategy="macd">
+                        <h4>MACD 交叉</h4>
+                        <p>MACD 線上穿信號線買入，下穿賣出</p>
+                        <div class="strategy-params">
+                            <div class="param-row">
+                                <input type="number" id="macd_fast" value="12" min="2" placeholder="快線">
+                                <input type="number" id="macd_slow" value="26" min="5" placeholder="慢線">
+                            </div>
+                            <div class="param-row">
+                                <input type="number" id="macd_signal" value="9" min="2" placeholder="信號線">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="strategy-card" data-strategy="adx_trend">
+                        <h4>ADX 趨勢強度</h4>
+                        <p>ADX 確認趨勢強度 + DMI 判斷方向</p>
+                        <div class="strategy-params">
+                            <div class="param-row">
+                                <input type="number" id="adx_period" value="14" min="5" placeholder="ADX週期">
+                                <input type="number" id="adx_threshold" value="25" min="15" max="40" placeholder="趨勢閾值">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="strategy-category">📊 震盪指標策略</div>
+                    
+                    <div class="strategy-card" data-strategy="rsi">
+                        <h4>RSI 超買超賣</h4>
+                        <p>RSI 低於閾值買入，高於閾值賣出</p>
+                        <div class="strategy-params">
+                            <div class="param-row">
+                                <input type="number" id="rsi_period" value="14" min="2" placeholder="週期">
+                            </div>
+                            <div class="param-row">
+                                <input type="number" id="rsi_oversold" value="30" min="10" max="50" placeholder="超賣">
+                                <input type="number" id="rsi_overbought" value="70" min="50" max="90" placeholder="超買">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="strategy-card" data-strategy="bollinger">
+                        <h4>布林通道</h4>
+                        <p>價格觸及下軌買入，觸及上軌賣出</p>
+                        <div class="strategy-params">
+                            <div class="param-row">
+                                <input type="number" id="bb_period" value="20" min="5" placeholder="週期">
+                                <input type="number" id="bb_std" value="2" min="1" max="4" step="0.5" placeholder="標準差">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="strategy-category">💹 價量複合策略</div>
+                    
+                    <div class="strategy-card" data-strategy="vwap">
+                        <h4>VWAP 突破</h4>
+                        <p>價格突破 VWAP 買入，跌破賣出（日內指標）</p>
+                        <div class="strategy-params">
+                            <div class="param-row">
+                                <input type="number" id="vwap_period" value="20" min="5" placeholder="計算週期">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="strategy-card" data-strategy="mfi">
+                        <h4>MFI 資金流量</h4>
+                        <p>結合價量的 RSI，衡量買賣壓力</p>
+                        <div class="strategy-params">
+                            <div class="param-row">
+                                <input type="number" id="mfi_period" value="14" min="2" placeholder="週期">
+                            </div>
+                            <div class="param-row">
+                                <input type="number" id="mfi_oversold" value="20" min="10" max="40" placeholder="超賣">
+                                <input type="number" id="mfi_overbought" value="80" min="60" max="90" placeholder="超買">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="strategy-card" data-strategy="obv">
+                        <h4>OBV 能量潮</h4>
+                        <p>追蹤累積淨成交量，OBV 均線交叉</p>
+                        <div class="strategy-params">
+                            <div class="param-row">
+                                <input type="number" id="obv_short" value="10" min="2" placeholder="短期均線">
+                                <input type="number" id="obv_long" value="30" min="5" placeholder="長期均線">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="strategy-card" data-strategy="ad_line">
+                        <h4>AD 累積派發線</h4>
+                        <p>資金流入流出趨勢，搭配價格背離</p>
+                        <div class="strategy-params">
+                            <div class="param-row">
+                                <input type="number" id="ad_short" value="10" min="2" placeholder="短期均線">
+                                <input type="number" id="ad_long" value="30" min="5" placeholder="長期均線">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="strategy-category">🔄 背離策略</div>
+                    
+                    <div class="strategy-card" data-strategy="rsi_divergence">
+                        <h4>RSI 背離</h4>
+                        <p>價格與 RSI 背離時反轉交易</p>
+                        <div class="strategy-params">
+                            <div class="param-row">
+                                <input type="number" id="rsi_div_period" value="14" min="5" placeholder="RSI週期">
+                                <input type="number" id="rsi_div_lookback" value="20" min="10" placeholder="回看週期">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="strategy-card" data-strategy="obv_divergence">
+                        <h4>OBV 背離</h4>
+                        <p>價格與成交量背離，資金先行指標</p>
+                        <div class="strategy-params">
+                            <div class="param-row">
+                                <input type="number" id="obv_div_lookback" value="20" min="10" placeholder="回看週期">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="strategy-card" data-strategy="mfi_divergence">
+                        <h4>MFI 背離</h4>
+                        <p>資金流量與價格背離，高可靠度反轉訊號</p>
+                        <div class="strategy-params">
+                            <div class="param-row">
+                                <input type="number" id="mfi_div_period" value="14" min="5" placeholder="MFI週期">
+                                <input type="number" id="mfi_div_lookback" value="20" min="10" placeholder="回看週期">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="strategy-category">🔀 複合策略</div>
+                    
+                    <div class="strategy-card" data-strategy="macd_rsi_combo">
+                        <h4>MACD + RSI 複合</h4>
+                        <p>MACD 確認趨勢 + RSI 過濾極值</p>
+                        <div class="strategy-params">
+                            <div class="param-row">
+                                <input type="number" id="combo_rsi_period" value="14" min="5" placeholder="RSI週期">
+                            </div>
+                            <div class="param-row">
+                                <input type="number" id="combo_rsi_low" value="40" min="20" max="50" placeholder="RSI低">
+                                <input type="number" id="combo_rsi_high" value="60" min="50" max="80" placeholder="RSI高">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="strategy-card" data-strategy="triple_screen">
+                        <h4>三重濾網系統</h4>
+                        <p>長期趨勢(MACD) + 中期震盪(RSI) + 短期入場</p>
+                        <div class="strategy-params">
+                            <div class="param-row">
+                                <input type="number" id="ts_rsi_period" value="14" min="5" placeholder="RSI週期">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="strategy-card" data-strategy="vwap_mfi_combo">
+                        <h4>VWAP + MFI 複合</h4>
+                        <p>VWAP 確認趨勢 + MFI 確認資金流向</p>
+                        <div class="strategy-params">
+                            <div class="param-row">
+                                <input type="number" id="vwap_mfi_period" value="14" min="5" placeholder="MFI週期">
+                            </div>
+                            <div class="param-row">
+                                <input type="number" id="vwap_mfi_threshold" value="50" min="40" max="60" placeholder="MFI中軸">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="strategy-category">💰 定投策略</div>
+                    
+                    <div class="strategy-card" data-strategy="dca">
+                        <h4>定期定額 (DCA)</h4>
+                        <p>每隔固定週期投入固定金額</p>
+                        <div class="strategy-params">
+                            <div class="param-row">
+                                <input type="number" id="dca_interval" value="7" min="1" placeholder="間隔(天)">
+                                <input type="number" id="dca_amount" value="500" min="10" placeholder="每次金額">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="strategy-card" data-strategy="smart_dca">
+                        <h4>智能 DCA</h4>
+                        <p>RSI 低時加倍買入，高時減半</p>
+                        <div class="strategy-params">
+                            <div class="param-row">
+                                <input type="number" id="sdca_interval" value="7" min="1" placeholder="間隔(天)">
+                                <input type="number" id="sdca_base" value="500" min="10" placeholder="基礎金額">
+                            </div>
+                            <div class="param-row">
+                                <input type="number" id="sdca_rsi_low" value="30" min="10" max="40" placeholder="RSI低">
+                                <input type="number" id="sdca_rsi_high" value="70" min="60" max="90" placeholder="RSI高">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="strategy-category">📐 K線三角形態策略</div>
+                    
+                    <div class="strategy-card" data-strategy="sym_triangle">
+                        <h4>對稱三角形突破</h4>
+                        <p>中立形態，跟隨突破方向交易</p>
+                        <div class="strategy-params">
+                            <div class="param-row">
+                                <input type="number" id="sym_lookback" value="30" min="15" max="60" placeholder="回看週期">
+                                <input type="number" id="sym_touches" value="2" min="2" max="5" placeholder="最少觸點">
+                            </div>
+                            <div class="param-row">
+                                <label style="display: flex; align-items: center; gap: 8px; color: var(--text-secondary);">
+                                    <input type="checkbox" id="sym_vol_confirm" checked> 成交量確認
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="strategy-card" data-strategy="asc_triangle">
+                        <h4>上升三角形突破</h4>
+                        <p>看漲形態，高概率向上突破</p>
+                        <div class="strategy-params">
+                            <div class="param-row">
+                                <input type="number" id="asc_lookback" value="30" min="15" max="60" placeholder="回看週期">
+                                <input type="number" id="asc_touches" value="2" min="2" max="5" placeholder="最少觸點">
+                            </div>
+                            <div class="param-row">
+                                <label style="display: flex; align-items: center; gap: 8px; color: var(--text-secondary);">
+                                    <input type="checkbox" id="asc_vol_confirm" checked> 成交量確認
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="strategy-card" data-strategy="desc_triangle">
+                        <h4>下降三角形突破</h4>
+                        <p>看跌形態，高概率向下突破</p>
+                        <div class="strategy-params">
+                            <div class="param-row">
+                                <input type="number" id="desc_lookback" value="30" min="15" max="60" placeholder="回看週期">
+                                <input type="number" id="desc_touches" value="2" min="2" max="5" placeholder="最少觸點">
+                            </div>
+                            <div class="param-row">
+                                <label style="display: flex; align-items: center; gap: 8px; color: var(--text-secondary);">
+                                    <input type="checkbox" id="desc_vol_confirm" checked> 成交量確認
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="strategy-card" data-strategy="all_triangles">
+                        <h4>綜合三角形策略</h4>
+                        <p>識別所有三角形態並交易</p>
+                        <div class="strategy-params">
+                            <div class="param-row">
+                                <input type="number" id="all_lookback" value="30" min="15" max="60" placeholder="回看週期">
+                                <input type="number" id="all_touches" value="2" min="2" max="5" placeholder="最少觸點">
+                            </div>
+                            <div class="param-row">
+                                <label style="display: flex; align-items: center; gap: 8px; color: var(--text-secondary);">
+                                    <input type="checkbox" id="all_vol_confirm" checked> 成交量確認
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="strategy-category">📐+ 三角形態多重確認策略</div>
+                    
+                    <div class="strategy-card" data-strategy="triangle_rsi">
+                        <h4>三角形 + RSI 確認</h4>
+                        <p>突破 + RSI 方向確認，減少假突破</p>
+                        <div class="strategy-params">
+                            <div class="param-row">
+                                <input type="number" id="tri_rsi_lookback" value="30" min="15" max="60" placeholder="回看週期">
+                                <input type="number" id="tri_rsi_touches" value="2" min="2" max="5" placeholder="最少觸點">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="strategy-card" data-strategy="triangle_macd">
+                        <h4>三角形 + MACD 確認</h4>
+                        <p>突破 + MACD 動能確認</p>
+                        <div class="strategy-params">
+                            <div class="param-row">
+                                <input type="number" id="tri_macd_lookback" value="30" min="15" max="60" placeholder="回看週期">
+                                <input type="number" id="tri_macd_touches" value="2" min="2" max="5" placeholder="最少觸點">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="strategy-card" data-strategy="triangle_multi">
+                        <h4>三角形多重確認（推薦）</h4>
+                        <p>突破 + 成交量 + RSI + MACD 四重確認</p>
+                        <div class="strategy-params">
+                            <div class="param-row">
+                                <input type="number" id="tri_multi_lookback" value="30" min="15" max="60" placeholder="回看週期">
+                                <input type="number" id="tri_multi_touches" value="2" min="2" max="5" placeholder="最少觸點">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button class="btn btn-primary" id="runBacktest" style="margin-top: 20px;">
+                        🚀 開始回測
+                    </button>
+                    
+                    <div class="progress-bar" id="progressBar">
+                        <div class="fill" id="progressFill"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 右側結果區 -->
+            <div class="results-area">
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <p id="loadingText">正在載入數據並執行回測...</p>
+                </div>
+                
+                <div id="resultsContainer" class="hidden">
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="label">回測期間</div>
+                            <div class="value" id="backtestPeriod" style="font-size: 1em;">-</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="label">K 線數量</div>
+                            <div class="value" id="totalBars">-</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="label">總報酬</div>
+                            <div class="value" id="totalReturn">-</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="label">年化報酬</div>
+                            <div class="value" id="annualReturn">-</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="label">最大回撤</div>
+                            <div class="value" id="maxDrawdown">-</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="label">夏普比率</div>
+                            <div class="value" id="sharpeRatio">-</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="label">勝率</div>
+                            <div class="value" id="winRate">-</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="label">總交易次數</div>
+                            <div class="value" id="totalTrades">-</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="label">盈虧比</div>
+                            <div class="value" id="profitFactor">-</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="label">最終資產</div>
+                            <div class="value" id="finalEquity">-</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="label">買入持有報酬</div>
+                            <div class="value" id="buyHoldReturn">-</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="label">策略 vs 持有</div>
+                            <div class="value" id="strategyVsHold">-</div>
+                        </div>
+                    </div>
+                    
+                    <div class="panel">
+                        <div class="panel-title">📈 權益曲線</div>
+                        <div class="chart-container">
+                            <canvas id="equityChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="panel">
+                        <div class="panel-title">📋 交易紀錄</div>
+                        <div class="table-scroll">
+                            <table class="trades-table">
+                                <thead>
+                                    <tr>
+                                        <th>時間</th>
+                                        <th>類型</th>
+                                        <th>價格</th>
+                                        <th>數量</th>
+                                        <th>盈虧</th>
+                                        <th>資產</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tradesBody">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="panel" id="welcomePanel">
+                    <div style="text-align: center; padding: 60px 20px;">
+                        <div style="font-size: 4em; margin-bottom: 20px;">📊</div>
+                        <h2 style="margin-bottom: 15px;">選擇策略開始回測</h2>
+                        <p style="color: var(--text-secondary); max-width: 400px; margin: 0 auto;">
+                            從左側選擇交易對、設定參數並選擇一種策略，<br>
+                            然後點擊「開始回測」查看歷史表現。
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== 技術指標計算 ====================
+        
+        // 簡單移動平均線
+        function SMA(data, period) {
+            const result = [];
+            for (let i = 0; i < data.length; i++) {
+                if (i < period - 1) {
+                    result.push(null);
+                } else {
+                    const sum = data.slice(i - period + 1, i + 1).reduce((a, b) => a + b, 0);
+                    result.push(sum / period);
+                }
+            }
+            return result;
+        }
+        
+        // 指數移動平均線
+        function EMA(data, period) {
+            const result = [];
+            const multiplier = 2 / (period + 1);
+            
+            let sum = 0;
+            for (let i = 0; i < period; i++) {
+                sum += data[i];
+                result.push(null);
+            }
+            result[period - 1] = sum / period;
+            
+            for (let i = period; i < data.length; i++) {
+                const ema = (data[i] - result[i - 1]) * multiplier + result[i - 1];
+                result.push(ema);
+            }
+            return result;
+        }
+        
+        // 相對強弱指標
+        function RSI(data, period) {
+            const result = [];
+            const gains = [];
+            const losses = [];
+            
+            for (let i = 0; i < data.length; i++) {
+                if (i === 0) {
+                    result.push(null);
+                    continue;
+                }
+                
+                const change = data[i] - data[i - 1];
+                gains.push(change > 0 ? change : 0);
+                losses.push(change < 0 ? -change : 0);
+                
+                if (i < period) {
+                    result.push(null);
+                    continue;
+                }
+                
+                const avgGain = gains.slice(-period).reduce((a, b) => a + b, 0) / period;
+                const avgLoss = losses.slice(-period).reduce((a, b) => a + b, 0) / period;
+                
+                if (avgLoss === 0) {
+                    result.push(100);
+                } else {
+                    const rs = avgGain / avgLoss;
+                    result.push(100 - (100 / (1 + rs)));
+                }
+            }
+            return result;
+        }
+        
+        // MACD 指標
+        function MACD(data, fastPeriod, slowPeriod, signalPeriod) {
+            const fastEMA = EMA(data, fastPeriod);
+            const slowEMA = EMA(data, slowPeriod);
+            
+            const macdLine = [];
+            for (let i = 0; i < data.length; i++) {
+                if (fastEMA[i] === null || slowEMA[i] === null) {
+                    macdLine.push(null);
+                } else {
+                    macdLine.push(fastEMA[i] - slowEMA[i]);
+                }
+            }
+            
+            const validMacd = macdLine.filter(v => v !== null);
+            const signalEMA = EMA(validMacd, signalPeriod);
+            
+            const signalLine = [];
+            let signalIdx = 0;
+            for (let i = 0; i < data.length; i++) {
+                if (macdLine[i] === null) {
+                    signalLine.push(null);
+                } else {
+                    signalLine.push(signalEMA[signalIdx] || null);
+                    signalIdx++;
+                }
+            }
+            
+            // 計算柱狀圖
+            const histogram = [];
+            for (let i = 0; i < data.length; i++) {
+                if (macdLine[i] === null || signalLine[i] === null) {
+                    histogram.push(null);
+                } else {
+                    histogram.push(macdLine[i] - signalLine[i]);
+                }
+            }
+            
+            return { macdLine, signalLine, histogram };
+        }
+        
+        // 布林通道
+        function BollingerBands(data, period, stdDev) {
+            const sma = SMA(data, period);
+            const upper = [];
+            const lower = [];
+            
+            for (let i = 0; i < data.length; i++) {
+                if (i < period - 1) {
+                    upper.push(null);
+                    lower.push(null);
+                } else {
+                    const slice = data.slice(i - period + 1, i + 1);
+                    const mean = sma[i];
+                    const variance = slice.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / period;
+                    const std = Math.sqrt(variance);
+                    upper.push(mean + stdDev * std);
+                    lower.push(mean - stdDev * std);
+                }
+            }
+            
+            return { middle: sma, upper, lower };
+        }
+        
+        // ==================== 價量複合型指標 ====================
+        
+        // VWAP - 成交量加權平均價
+        function VWAP(candles, period) {
+            const result = [];
+            
+            for (let i = 0; i < candles.length; i++) {
+                if (i < period - 1) {
+                    result.push(null);
+                    continue;
+                }
+                
+                let sumPV = 0;  // 價格 * 成交量
+                let sumV = 0;   // 成交量
+                
+                for (let j = i - period + 1; j <= i; j++) {
+                    // 典型價格 = (高 + 低 + 收) / 3
+                    const tp = (candles[j].high + candles[j].low + candles[j].close) / 3;
+                    sumPV += tp * candles[j].volume;
+                    sumV += candles[j].volume;
+                }
+                
+                result.push(sumV > 0 ? sumPV / sumV : null);
+            }
+            
+            return result;
+        }
+        
+        // MFI - 資金流量指標 (結合價量的 RSI)
+        function MFI(candles, period) {
+            const result = [];
+            const typicalPrices = [];
+            const rawMoneyFlows = [];
+            
+            for (let i = 0; i < candles.length; i++) {
+                // 典型價格
+                const tp = (candles[i].high + candles[i].low + candles[i].close) / 3;
+                typicalPrices.push(tp);
+                
+                // 原始資金流量 = 典型價格 * 成交量
+                const rmf = tp * candles[i].volume;
+                
+                if (i === 0) {
+                    rawMoneyFlows.push({ positive: 0, negative: 0 });
+                    result.push(null);
+                    continue;
+                }
+                
+                // 判斷資金流向
+                if (tp > typicalPrices[i - 1]) {
+                    rawMoneyFlows.push({ positive: rmf, negative: 0 });
+                } else if (tp < typicalPrices[i - 1]) {
+                    rawMoneyFlows.push({ positive: 0, negative: rmf });
+                } else {
+                    rawMoneyFlows.push({ positive: 0, negative: 0 });
+                }
+                
+                if (i < period) {
+                    result.push(null);
+                    continue;
+                }
+                
+                // 計算正負資金流量總和
+                let positiveFlow = 0;
+                let negativeFlow = 0;
+                for (let j = i - period + 1; j <= i; j++) {
+                    positiveFlow += rawMoneyFlows[j].positive;
+                    negativeFlow += rawMoneyFlows[j].negative;
+                }
+                
+                // 資金流量比率和 MFI
+                if (negativeFlow === 0) {
+                    result.push(100);
+                } else {
+                    const mfr = positiveFlow / negativeFlow;
+                    result.push(100 - (100 / (1 + mfr)));
+                }
+            }
+            
+            return result;
+        }
+        
+        // OBV - 能量潮指標
+        function OBV(candles) {
+            const result = [0];
+            
+            for (let i = 1; i < candles.length; i++) {
+                if (candles[i].close > candles[i - 1].close) {
+                    result.push(result[i - 1] + candles[i].volume);
+                } else if (candles[i].close < candles[i - 1].close) {
+                    result.push(result[i - 1] - candles[i].volume);
+                } else {
+                    result.push(result[i - 1]);
+                }
+            }
+            
+            return result;
+        }
+        
+        // AD Line - 累積/派發線
+        function ADLine(candles) {
+            const result = [0];
+            
+            for (let i = 1; i < candles.length; i++) {
+                const high = candles[i].high;
+                const low = candles[i].low;
+                const close = candles[i].close;
+                const volume = candles[i].volume;
+                
+                // 資金流量乘數 = ((收盤價 - 最低價) - (最高價 - 收盤價)) / (最高價 - 最低價)
+                let mfm = 0;
+                if (high !== low) {
+                    mfm = ((close - low) - (high - close)) / (high - low);
+                }
+                
+                // 資金流量成交量 = 乘數 * 成交量
+                const mfv = mfm * volume;
+                
+                result.push(result[i - 1] + mfv);
+            }
+            
+            return result;
+        }
+        
+        // ATR - 平均真實波幅
+        function ATR(candles, period) {
+            const result = [];
+            const trueRanges = [];
+            
+            for (let i = 0; i < candles.length; i++) {
+                if (i === 0) {
+                    trueRanges.push(candles[i].high - candles[i].low);
+                    result.push(null);
+                    continue;
+                }
+                
+                // 真實波幅 = max(高-低, |高-前收|, |低-前收|)
+                const tr = Math.max(
+                    candles[i].high - candles[i].low,
+                    Math.abs(candles[i].high - candles[i - 1].close),
+                    Math.abs(candles[i].low - candles[i - 1].close)
+                );
+                trueRanges.push(tr);
+                
+                if (i < period) {
+                    result.push(null);
+                    continue;
+                }
+                
+                const atr = trueRanges.slice(-period).reduce((a, b) => a + b, 0) / period;
+                result.push(atr);
+            }
+            
+            return result;
+        }
+        
+        // ADX - 平均趨向指數
+        function ADX(candles, period) {
+            const result = { adx: [], pdi: [], mdi: [] };
+            const trueRanges = [];
+            const plusDMs = [];
+            const minusDMs = [];
+            
+            for (let i = 0; i < candles.length; i++) {
+                if (i === 0) {
+                    trueRanges.push(candles[i].high - candles[i].low);
+                    plusDMs.push(0);
+                    minusDMs.push(0);
+                    result.adx.push(null);
+                    result.pdi.push(null);
+                    result.mdi.push(null);
+                    continue;
+                }
+                
+                // True Range
+                const tr = Math.max(
+                    candles[i].high - candles[i].low,
+                    Math.abs(candles[i].high - candles[i - 1].close),
+                    Math.abs(candles[i].low - candles[i - 1].close)
+                );
+                trueRanges.push(tr);
+                
+                // Directional Movement
+                const upMove = candles[i].high - candles[i - 1].high;
+                const downMove = candles[i - 1].low - candles[i].low;
+                
+                plusDMs.push(upMove > downMove && upMove > 0 ? upMove : 0);
+                minusDMs.push(downMove > upMove && downMove > 0 ? downMove : 0);
+                
+                if (i < period) {
+                    result.adx.push(null);
+                    result.pdi.push(null);
+                    result.mdi.push(null);
+                    continue;
+                }
+                
+                // 平滑計算
+                const smoothTR = trueRanges.slice(-period).reduce((a, b) => a + b, 0);
+                const smoothPlusDM = plusDMs.slice(-period).reduce((a, b) => a + b, 0);
+                const smoothMinusDM = minusDMs.slice(-period).reduce((a, b) => a + b, 0);
+                
+                // +DI 和 -DI
+                const pdi = smoothTR > 0 ? (smoothPlusDM / smoothTR) * 100 : 0;
+                const mdi = smoothTR > 0 ? (smoothMinusDM / smoothTR) * 100 : 0;
+                
+                result.pdi.push(pdi);
+                result.mdi.push(mdi);
+                
+                // DX
+                const dx = (pdi + mdi) > 0 ? Math.abs(pdi - mdi) / (pdi + mdi) * 100 : 0;
+                
+                // ADX (DX 的平滑平均)
+                if (i < period * 2) {
+                    result.adx.push(null);
+                } else {
+                    const recentDX = [];
+                    for (let j = i - period + 1; j <= i; j++) {
+                        const pdiJ = result.pdi[j] || 0;
+                        const mdiJ = result.mdi[j] || 0;
+                        recentDX.push((pdiJ + mdiJ) > 0 ? Math.abs(pdiJ - mdiJ) / (pdiJ + mdiJ) * 100 : 0);
+                    }
+                    result.adx.push(recentDX.reduce((a, b) => a + b, 0) / period);
+                }
+            }
+            
+            return result;
+        }
+        
+        // 背離檢測函數
+        function detectDivergence(prices, indicator, lookback) {
+            const result = [];
+            
+            for (let i = 0; i < prices.length; i++) {
+                if (i < lookback || indicator[i] === null) {
+                    result.push(0);
+                    continue;
+                }
+                
+                // 找近期價格和指標的高低點
+                const priceSlice = prices.slice(i - lookback, i + 1);
+                const indSlice = indicator.slice(i - lookback, i + 1).filter(v => v !== null);
+                
+                if (indSlice.length < lookback / 2) {
+                    result.push(0);
+                    continue;
+                }
+                
+                const priceHigh = Math.max(...priceSlice);
+                const priceLow = Math.min(...priceSlice);
+                const indHigh = Math.max(...indSlice);
+                const indLow = Math.min(...indSlice);
+                
+                const currentPrice = prices[i];
+                const currentInd = indicator[i];
+                
+                // 多頭背離：價格創新低但指標未創新低
+                if (currentPrice <= priceLow * 1.01 && currentInd > indLow * 1.05) {
+                    result.push(1); // 買入信號
+                }
+                // 空頭背離：價格創新高但指標未創新高
+                else if (currentPrice >= priceHigh * 0.99 && currentInd < indHigh * 0.95) {
+                    result.push(-1); // 賣出信號
+                }
+                else {
+                    result.push(0);
+                }
+            }
+            
+            return result;
+        }
+        
+        // ==================== 策略實現 ====================
+        
+        const strategies = {
+            // === 趨勢跟隨策略 ===
+            
+            sma_cross: (candles, params) => {
+                const closes = candles.map(c => c.close);
+                const shortMA = SMA(closes, params.short);
+                const longMA = SMA(closes, params.long);
+                
+                const signals = [];
+                for (let i = 1; i < candles.length; i++) {
+                    if (shortMA[i] === null || longMA[i] === null || 
+                        shortMA[i-1] === null || longMA[i-1] === null) {
+                        signals.push(0);
+                        continue;
+                    }
+                    
+                    if (shortMA[i-1] <= longMA[i-1] && shortMA[i] > longMA[i]) {
+                        signals.push(1);
+                    } else if (shortMA[i-1] >= longMA[i-1] && shortMA[i] < longMA[i]) {
+                        signals.push(-1);
+                    } else {
+                        signals.push(0);
+                    }
+                }
+                return [0, ...signals];
+            },
+            
+            ema_cross: (candles, params) => {
+                const closes = candles.map(c => c.close);
+                const shortMA = EMA(closes, params.short);
+                const longMA = EMA(closes, params.long);
+                
+                const signals = [];
+                for (let i = 1; i < candles.length; i++) {
+                    if (shortMA[i] === null || longMA[i] === null || 
+                        shortMA[i-1] === null || longMA[i-1] === null) {
+                        signals.push(0);
+                        continue;
+                    }
+                    
+                    if (shortMA[i-1] <= longMA[i-1] && shortMA[i] > longMA[i]) {
+                        signals.push(1);
+                    } else if (shortMA[i-1] >= longMA[i-1] && shortMA[i] < longMA[i]) {
+                        signals.push(-1);
+                    } else {
+                        signals.push(0);
+                    }
+                }
+                return [0, ...signals];
+            },
+            
+            macd: (candles, params) => {
+                const closes = candles.map(c => c.close);
+                const { macdLine, signalLine } = MACD(closes, params.fast, params.slow, params.signal);
+                
+                const signals = [];
+                for (let i = 1; i < candles.length; i++) {
+                    if (macdLine[i] === null || signalLine[i] === null ||
+                        macdLine[i-1] === null || signalLine[i-1] === null) {
+                        signals.push(0);
+                        continue;
+                    }
+                    
+                    if (macdLine[i-1] <= signalLine[i-1] && macdLine[i] > signalLine[i]) {
+                        signals.push(1);
+                    } else if (macdLine[i-1] >= signalLine[i-1] && macdLine[i] < signalLine[i]) {
+                        signals.push(-1);
+                    } else {
+                        signals.push(0);
+                    }
+                }
+                return [0, ...signals];
+            },
+            
+            adx_trend: (candles, params) => {
+                const { adx, pdi, mdi } = ADX(candles, params.period);
+                
+                const signals = [];
+                for (let i = 1; i < candles.length; i++) {
+                    if (adx[i] === null || pdi[i] === null || mdi[i] === null ||
+                        pdi[i-1] === null || mdi[i-1] === null) {
+                        signals.push(0);
+                        continue;
+                    }
+                    
+                    // ADX > 閾值表示趨勢強勁
+                    if (adx[i] > params.threshold) {
+                        // +DI 上穿 -DI 買入
+                        if (pdi[i-1] <= mdi[i-1] && pdi[i] > mdi[i]) {
+                            signals.push(1);
+                        }
+                        // +DI 下穿 -DI 賣出
+                        else if (pdi[i-1] >= mdi[i-1] && pdi[i] < mdi[i]) {
+                            signals.push(-1);
+                        } else {
+                            signals.push(0);
+                        }
+                    } else {
+                        signals.push(0);
+                    }
+                }
+                return [0, ...signals];
+            },
+            
+            // === 震盪指標策略 ===
+            
+            rsi: (candles, params) => {
+                const closes = candles.map(c => c.close);
+                const rsi = RSI(closes, params.period);
+                
+                const signals = [];
+                let lastSignal = 0;
+                
+                for (let i = 0; i < candles.length; i++) {
+                    if (rsi[i] === null) {
+                        signals.push(0);
+                        continue;
+                    }
+                    
+                    if (rsi[i] < params.oversold && lastSignal !== 1) {
+                        signals.push(1);
+                        lastSignal = 1;
+                    } else if (rsi[i] > params.overbought && lastSignal !== -1) {
+                        signals.push(-1);
+                        lastSignal = -1;
+                    } else {
+                        signals.push(0);
+                    }
+                }
+                return signals;
+            },
+            
+            bollinger: (candles, params) => {
+                const closes = candles.map(c => c.close);
+                const { upper, lower } = BollingerBands(closes, params.period, params.std);
+                
+                const signals = [];
+                let lastSignal = 0;
+                
+                for (let i = 0; i < candles.length; i++) {
+                    if (upper[i] === null || lower[i] === null) {
+                        signals.push(0);
+                        continue;
+                    }
+                    
+                    if (closes[i] <= lower[i] && lastSignal !== 1) {
+                        signals.push(1);
+                        lastSignal = 1;
+                    } else if (closes[i] >= upper[i] && lastSignal !== -1) {
+                        signals.push(-1);
+                        lastSignal = -1;
+                    } else {
+                        signals.push(0);
+                    }
+                }
+                return signals;
+            },
+            
+            // === 價量複合策略 ===
+            
+            vwap: (candles, params) => {
+                const vwap = VWAP(candles, params.period);
+                const closes = candles.map(c => c.close);
+                
+                const signals = [];
+                for (let i = 1; i < candles.length; i++) {
+                    if (vwap[i] === null || vwap[i-1] === null) {
+                        signals.push(0);
+                        continue;
+                    }
+                    
+                    // 價格上穿 VWAP 買入
+                    if (closes[i-1] <= vwap[i-1] && closes[i] > vwap[i]) {
+                        signals.push(1);
+                    }
+                    // 價格下穿 VWAP 賣出
+                    else if (closes[i-1] >= vwap[i-1] && closes[i] < vwap[i]) {
+                        signals.push(-1);
+                    } else {
+                        signals.push(0);
+                    }
+                }
+                return [0, ...signals];
+            },
+            
+            mfi: (candles, params) => {
+                const mfi = MFI(candles, params.period);
+                
+                const signals = [];
+                let lastSignal = 0;
+                
+                for (let i = 0; i < candles.length; i++) {
+                    if (mfi[i] === null) {
+                        signals.push(0);
+                        continue;
+                    }
+                    
+                    // MFI 超賣買入
+                    if (mfi[i] < params.oversold && lastSignal !== 1) {
+                        signals.push(1);
+                        lastSignal = 1;
+                    }
+                    // MFI 超買賣出
+                    else if (mfi[i] > params.overbought && lastSignal !== -1) {
+                        signals.push(-1);
+                        lastSignal = -1;
+                    } else {
+                        signals.push(0);
+                    }
+                }
+                return signals;
+            },
+            
+            obv: (candles, params) => {
+                const obv = OBV(candles);
+                const shortMA = SMA(obv, params.short);
+                const longMA = SMA(obv, params.long);
+                
+                const signals = [];
+                for (let i = 1; i < candles.length; i++) {
+                    if (shortMA[i] === null || longMA[i] === null ||
+                        shortMA[i-1] === null || longMA[i-1] === null) {
+                        signals.push(0);
+                        continue;
+                    }
+                    
+                    // OBV 短期均線上穿長期均線
+                    if (shortMA[i-1] <= longMA[i-1] && shortMA[i] > longMA[i]) {
+                        signals.push(1);
+                    }
+                    // OBV 短期均線下穿長期均線
+                    else if (shortMA[i-1] >= longMA[i-1] && shortMA[i] < longMA[i]) {
+                        signals.push(-1);
+                    } else {
+                        signals.push(0);
+                    }
+                }
+                return [0, ...signals];
+            },
+            
+            ad_line: (candles, params) => {
+                const ad = ADLine(candles);
+                const shortMA = SMA(ad, params.short);
+                const longMA = SMA(ad, params.long);
+                
+                const signals = [];
+                for (let i = 1; i < candles.length; i++) {
+                    if (shortMA[i] === null || longMA[i] === null ||
+                        shortMA[i-1] === null || longMA[i-1] === null) {
+                        signals.push(0);
+                        continue;
+                    }
+                    
+                    if (shortMA[i-1] <= longMA[i-1] && shortMA[i] > longMA[i]) {
+                        signals.push(1);
+                    } else if (shortMA[i-1] >= longMA[i-1] && shortMA[i] < longMA[i]) {
+                        signals.push(-1);
+                    } else {
+                        signals.push(0);
+                    }
+                }
+                return [0, ...signals];
+            },
+            
+            // === 背離策略 ===
+            
+            rsi_divergence: (candles, params) => {
+                const closes = candles.map(c => c.close);
+                const rsi = RSI(closes, params.period);
+                return detectDivergence(closes, rsi, params.lookback);
+            },
+            
+            obv_divergence: (candles, params) => {
+                const closes = candles.map(c => c.close);
+                const obv = OBV(candles);
+                return detectDivergence(closes, obv, params.lookback);
+            },
+            
+            mfi_divergence: (candles, params) => {
+                const closes = candles.map(c => c.close);
+                const mfi = MFI(candles, params.period);
+                return detectDivergence(closes, mfi, params.lookback);
+            },
+            
+            // === 複合策略 ===
+            
+            macd_rsi_combo: (candles, params) => {
+                const closes = candles.map(c => c.close);
+                const { macdLine, signalLine } = MACD(closes, 12, 26, 9);
+                const rsi = RSI(closes, params.rsi_period);
+                
+                const signals = [];
+                for (let i = 1; i < candles.length; i++) {
+                    if (macdLine[i] === null || signalLine[i] === null || rsi[i] === null ||
+                        macdLine[i-1] === null || signalLine[i-1] === null) {
+                        signals.push(0);
+                        continue;
+                    }
+                    
+                    // MACD 黃金交叉 + RSI 不在超買區
+                    if (macdLine[i-1] <= signalLine[i-1] && macdLine[i] > signalLine[i] && rsi[i] < params.rsi_high) {
+                        signals.push(1);
+                    }
+                    // MACD 死亡交叉 + RSI 不在超賣區
+                    else if (macdLine[i-1] >= signalLine[i-1] && macdLine[i] < signalLine[i] && rsi[i] > params.rsi_low) {
+                        signals.push(-1);
+                    } else {
+                        signals.push(0);
+                    }
+                }
+                return [0, ...signals];
+            },
+            
+            triple_screen: (candles, params) => {
+                const closes = candles.map(c => c.close);
+                const { macdLine, signalLine, histogram } = MACD(closes, 12, 26, 9);
+                const rsi = RSI(closes, params.rsi_period);
+                
+                const signals = [];
+                for (let i = 2; i < candles.length; i++) {
+                    if (histogram[i] === null || histogram[i-1] === null || rsi[i] === null) {
+                        signals.push(0);
+                        continue;
+                    }
+                    
+                    // 第一層：MACD 柱狀圖方向（長期趨勢）
+                    const longTrend = histogram[i] > histogram[i-1] ? 1 : -1;
+                    
+                    // 第二層：RSI 狀態（中期震盪）
+                    const rsiSignal = rsi[i] < 30 ? 1 : (rsi[i] > 70 ? -1 : 0);
+                    
+                    // 只有當長期趨勢和中期震盪一致時才交易
+                    if (longTrend === 1 && rsiSignal === 1) {
+                        signals.push(1);
+                    } else if (longTrend === -1 && rsiSignal === -1) {
+                        signals.push(-1);
+                    } else {
+                        signals.push(0);
+                    }
+                }
+                return [0, 0, ...signals];
+            },
+            
+            vwap_mfi_combo: (candles, params) => {
+                const vwap = VWAP(candles, 20);
+                const mfi = MFI(candles, params.mfi_period);
+                const closes = candles.map(c => c.close);
+                
+                const signals = [];
+                for (let i = 1; i < candles.length; i++) {
+                    if (vwap[i] === null || mfi[i] === null) {
+                        signals.push(0);
+                        continue;
+                    }
+                    
+                    // 價格在 VWAP 上方 + MFI 上升中（資金流入）
+                    if (closes[i] > vwap[i] && mfi[i] > params.mfi_threshold && mfi[i-1] && mfi[i] > mfi[i-1]) {
+                        signals.push(1);
+                    }
+                    // 價格在 VWAP 下方 + MFI 下降中（資金流出）
+                    else if (closes[i] < vwap[i] && mfi[i] < params.mfi_threshold && mfi[i-1] && mfi[i] < mfi[i-1]) {
+                        signals.push(-1);
+                    } else {
+                        signals.push(0);
+                    }
+                }
+                return [0, ...signals];
+            },
+            
+            // === 定投策略 ===
+            
+            dca: (candles, params) => {
+                const signals = [];
+                const intervalBars = Math.floor(params.interval * 24);
+                
+                for (let i = 0; i < candles.length; i++) {
+                    if (i % intervalBars === 0) {
+                        signals.push(2); // 特殊信號：定額買入
+                    } else {
+                        signals.push(0);
+                    }
+                }
+                return signals;
+            },
+            
+            smart_dca: (candles, params) => {
+                const closes = candles.map(c => c.close);
+                const rsi = RSI(closes, 14);
+                const intervalBars = Math.floor(params.interval * 24);
+                
+                const signals = [];
+                for (let i = 0; i < candles.length; i++) {
+                    if (i % intervalBars === 0) {
+                        // 根據 RSI 調整買入金額
+                        if (rsi[i] !== null && rsi[i] < params.rsi_low) {
+                            signals.push(3); // 加倍買入
+                        } else if (rsi[i] !== null && rsi[i] > params.rsi_high) {
+                            signals.push(4); // 減半買入
+                        } else {
+                            signals.push(2); // 正常買入
+                        }
+                    } else {
+                        signals.push(0);
+                    }
+                }
+                return signals;
+            },
+            
+            // === K線形態策略 ===
+            
+            // 對稱三角形突破策略
+            sym_triangle: (candles, params) => {
+                const patterns = detectTrianglePatterns(candles, params.lookback, params.min_touches);
+                return generateTriangleSignals(candles, patterns, 'symmetric', params);
+            },
+            
+            // 上升三角形突破策略
+            asc_triangle: (candles, params) => {
+                const patterns = detectTrianglePatterns(candles, params.lookback, params.min_touches);
+                return generateTriangleSignals(candles, patterns, 'ascending', params);
+            },
+            
+            // 下降三角形突破策略
+            desc_triangle: (candles, params) => {
+                const patterns = detectTrianglePatterns(candles, params.lookback, params.min_touches);
+                return generateTriangleSignals(candles, patterns, 'descending', params);
+            },
+            
+            // 所有三角形形態綜合策略
+            all_triangles: (candles, params) => {
+                const patterns = detectTrianglePatterns(candles, params.lookback, params.min_touches);
+                return generateTriangleSignals(candles, patterns, 'all', params);
+            },
+            
+            // 三角形 + RSI 確認策略
+            triangle_rsi: (candles, params) => {
+                const patterns = detectTrianglePatterns(candles, params.lookback, params.min_touches);
+                const closes = candles.map(c => c.close);
+                const rsi = RSI(closes, 14);
+                return generateTriangleSignalsWithConfirmation(candles, patterns, rsi, null, params);
+            },
+            
+            // 三角形 + MACD 確認策略
+            triangle_macd: (candles, params) => {
+                const patterns = detectTrianglePatterns(candles, params.lookback, params.min_touches);
+                const closes = candles.map(c => c.close);
+                const macd = MACD(closes, 12, 26, 9);
+                return generateTriangleSignalsWithConfirmation(candles, patterns, null, macd, params);
+            },
+            
+            // 三角形 + RSI + MACD 多重確認策略（最高可靠度）
+            triangle_multi: (candles, params) => {
+                const patterns = detectTrianglePatterns(candles, params.lookback, params.min_touches);
+                const closes = candles.map(c => c.close);
+                const rsi = RSI(closes, 14);
+                const macd = MACD(closes, 12, 26, 9);
+                return generateTriangleSignalsWithConfirmation(candles, patterns, rsi, macd, params);
+            }
+        };
+        
+        // ==================== K線三角形態識別函數 ====================
+        
+        // 找出局部高點和低點
+        function findPivots(candles, leftBars, rightBars) {
+            const highs = [];
+            const lows = [];
+            
+            for (let i = leftBars; i < candles.length - rightBars; i++) {
+                // 檢查是否為局部高點
+                let isHigh = true;
+                for (let j = i - leftBars; j <= i + rightBars; j++) {
+                    if (j !== i && candles[j].high >= candles[i].high) {
+                        isHigh = false;
+                        break;
+                    }
+                }
+                if (isHigh) {
+                    highs.push({ index: i, price: candles[i].high });
+                }
+                
+                // 檢查是否為局部低點
+                let isLow = true;
+                for (let j = i - leftBars; j <= i + rightBars; j++) {
+                    if (j !== i && candles[j].low <= candles[i].low) {
+                        isLow = false;
+                        break;
+                    }
+                }
+                if (isLow) {
+                    lows.push({ index: i, price: candles[i].low });
+                }
+            }
+            
+            return { highs, lows };
+        }
+        
+        // 線性回歸計算趨勢線
+        function linearRegression(points) {
+            if (points.length < 2) return null;
+            
+            const n = points.length;
+            let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+            
+            for (const p of points) {
+                sumX += p.index;
+                sumY += p.price;
+                sumXY += p.index * p.price;
+                sumX2 += p.index * p.index;
+            }
+            
+            const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+            const intercept = (sumY - slope * sumX) / n;
+            
+            // 計算 R² 值（擬合度）
+            const meanY = sumY / n;
+            let ssTot = 0, ssRes = 0;
+            for (const p of points) {
+                const predicted = slope * p.index + intercept;
+                ssTot += Math.pow(p.price - meanY, 2);
+                ssRes += Math.pow(p.price - predicted, 2);
+            }
+            const r2 = 1 - (ssRes / ssTot);
+            
+            return { slope, intercept, r2 };
+        }
+        
+        // 檢測三角形形態
+        function detectTrianglePatterns(candles, lookback, minTouches) {
+            const patterns = [];
+            const pivotWindow = 3; // 局部極值的檢測窗口
+            
+            for (let endIdx = lookback; endIdx < candles.length; endIdx++) {
+                const startIdx = endIdx - lookback;
+                const windowCandles = candles.slice(startIdx, endIdx + 1);
+                
+                // 找出該窗口內的局部高低點
+                const { highs, lows } = findPivots(windowCandles, pivotWindow, pivotWindow);
+                
+                // 需要足夠的觸點
+                if (highs.length < minTouches || lows.length < minTouches) continue;
+                
+                // 計算上方趨勢線（連接高點）
+                const upperLine = linearRegression(highs);
+                // 計算下方趨勢線（連接低點）
+                const lowerLine = linearRegression(lows);
+                
+                if (!upperLine || !lowerLine) continue;
+                
+                // 擬合度要求
+                if (upperLine.r2 < 0.7 || lowerLine.r2 < 0.7) continue;
+                
+                // 計算斜率閾值（相對於價格的百分比）
+                const avgPrice = windowCandles.reduce((s, c) => s + c.close, 0) / windowCandles.length;
+                const slopeThreshold = avgPrice * 0.0001; // 接近水平的閾值
+                
+                // 判斷三角形類型
+                let triangleType = null;
+                
+                const upperSlope = upperLine.slope;
+                const lowerSlope = lowerLine.slope;
+                
+                // 確保是收斂形態（兩線會相交）
+                if (upperSlope >= lowerSlope) continue; // 不收斂
+                
+                // 對稱三角形：上方下降，下方上升
+                if (upperSlope < -slopeThreshold && lowerSlope > slopeThreshold) {
+                    triangleType = 'symmetric';
+                }
+                // 上升三角形：上方接近水平，下方上升
+                else if (Math.abs(upperSlope) < slopeThreshold * 3 && lowerSlope > slopeThreshold) {
+                    triangleType = 'ascending';
+                }
+                // 下降三角形：上方下降，下方接近水平
+                else if (upperSlope < -slopeThreshold && Math.abs(lowerSlope) < slopeThreshold * 3) {
+                    triangleType = 'descending';
+                }
+                
+                if (triangleType) {
+                    // 計算形態的垂直高度（用於目標價）
+                    const patternHigh = Math.max(...windowCandles.map(c => c.high));
+                    const patternLow = Math.min(...windowCandles.map(c => c.low));
+                    const height = patternHigh - patternLow;
+                    
+                    // 計算交易量變化（形態期間應該縮減）
+                    const firstHalfVol = windowCandles.slice(0, Math.floor(lookback/2)).reduce((s, c) => s + c.volume, 0);
+                    const secondHalfVol = windowCandles.slice(Math.floor(lookback/2)).reduce((s, c) => s + c.volume, 0);
+                    const volumeDecreasing = secondHalfVol < firstHalfVol;
+                    
+                    patterns.push({
+                        type: triangleType,
+                        startIndex: startIdx,
+                        endIndex: endIdx,
+                        upperLine,
+                        lowerLine,
+                        height,
+                        patternHigh,
+                        patternLow,
+                        volumeDecreasing,
+                        avgPrice
+                    });
+                }
+            }
+            
+            return patterns;
+        }
+        
+        // 生成三角形突破信號
+        function generateTriangleSignals(candles, patterns, filterType, params) {
+            const signals = new Array(candles.length).fill(0);
+            const volumes = candles.map(c => c.volume);
+            const avgVolume = SMA(volumes, 20);
+            
+            for (const pattern of patterns) {
+                if (filterType !== 'all' && pattern.type !== filterType) continue;
+                
+                const breakoutIdx = pattern.endIndex + 1;
+                if (breakoutIdx >= candles.length) continue;
+                
+                const candle = candles[breakoutIdx];
+                const prevCandle = candles[pattern.endIndex];
+                
+                // 計算突破點的趨勢線價格
+                const upperPrice = pattern.upperLine.slope * (breakoutIdx - pattern.startIndex) + pattern.upperLine.intercept;
+                const lowerPrice = pattern.lowerLine.slope * (breakoutIdx - pattern.startIndex) + pattern.lowerLine.intercept;
+                
+                // 確認突破（收盤價突破）
+                const breakoutUp = candle.close > upperPrice && prevCandle.close <= upperPrice;
+                const breakoutDown = candle.close < lowerPrice && prevCandle.close >= lowerPrice;
+                
+                // 交易量確認（突破時成交量放大）
+                const volumeConfirm = !params.volume_confirm || 
+                    (avgVolume[breakoutIdx] && candle.volume > avgVolume[breakoutIdx] * 1.5);
+                
+                if (!volumeConfirm) continue;
+                
+                // 根據形態類型和突破方向生成信號
+                if (breakoutUp) {
+                    // 上升三角形向上突破（最高可靠度）
+                    // 對稱三角形向上突破（中等可靠度）
+                    // 下降三角形向上突破（反轉信號，較低可靠度）
+                    if (pattern.type === 'ascending' || pattern.type === 'symmetric') {
+                        signals[breakoutIdx] = 1;
+                    }
+                }
+                
+                if (breakoutDown) {
+                    // 下降三角形向下突破（最高可靠度）
+                    // 對稱三角形向下突破（中等可靠度）
+                    // 上升三角形向下突破（失敗形態，較低可靠度）
+                    if (pattern.type === 'descending' || pattern.type === 'symmetric') {
+                        signals[breakoutIdx] = -1;
+                    }
+                }
+            }
+            
+            return signals;
+        }
+        
+        // 生成帶指標確認的三角形信號
+        function generateTriangleSignalsWithConfirmation(candles, patterns, rsi, macd, params) {
+            const signals = new Array(candles.length).fill(0);
+            const volumes = candles.map(c => c.volume);
+            const avgVolume = SMA(volumes, 20);
+            
+            for (const pattern of patterns) {
+                const breakoutIdx = pattern.endIndex + 1;
+                if (breakoutIdx >= candles.length) continue;
+                
+                const candle = candles[breakoutIdx];
+                const prevCandle = candles[pattern.endIndex];
+                
+                // 計算趨勢線價格
+                const upperPrice = pattern.upperLine.slope * (breakoutIdx - pattern.startIndex) + pattern.upperLine.intercept;
+                const lowerPrice = pattern.lowerLine.slope * (breakoutIdx - pattern.startIndex) + pattern.lowerLine.intercept;
+                
+                const breakoutUp = candle.close > upperPrice && prevCandle.close <= upperPrice;
+                const breakoutDown = candle.close < lowerPrice && prevCandle.close >= lowerPrice;
+                
+                // 交易量確認
+                const volumeConfirm = avgVolume[breakoutIdx] && candle.volume > avgVolume[breakoutIdx] * 1.3;
+                
+                // RSI 確認
+                let rsiConfirmUp = true, rsiConfirmDown = true;
+                if (rsi) {
+                    const rsiVal = rsi[breakoutIdx];
+                    const prevRsi = rsi[breakoutIdx - 1];
+                    if (rsiVal !== null && prevRsi !== null) {
+                        // 向上突破：RSI 應上升且突破 50 中線
+                        rsiConfirmUp = rsiVal > 50 && rsiVal > prevRsi;
+                        // 向下突破：RSI 應下降且跌破 50 中線
+                        rsiConfirmDown = rsiVal < 50 && rsiVal < prevRsi;
+                    }
+                }
+                
+                // MACD 確認
+                let macdConfirmUp = true, macdConfirmDown = true;
+                if (macd) {
+                    const macdVal = macd.macdLine[breakoutIdx];
+                    const signalVal = macd.signalLine[breakoutIdx];
+                    const prevMacd = macd.macdLine[breakoutIdx - 1];
+                    const prevSignal = macd.signalLine[breakoutIdx - 1];
+                    
+                    if (macdVal !== null && signalVal !== null && prevMacd !== null && prevSignal !== null) {
+                        // 向上突破：MACD 黃金交叉或 MACD > Signal
+                        macdConfirmUp = macdVal > signalVal || (prevMacd <= prevSignal && macdVal > signalVal);
+                        // 向下突破：MACD 死亡交叉或 MACD < Signal
+                        macdConfirmDown = macdVal < signalVal || (prevMacd >= prevSignal && macdVal < signalVal);
+                    }
+                }
+                
+                // 綜合判斷
+                if (breakoutUp && volumeConfirm && rsiConfirmUp && macdConfirmUp) {
+                    if (pattern.type === 'ascending' || pattern.type === 'symmetric') {
+                        signals[breakoutIdx] = 1;
+                    }
+                }
+                
+                if (breakoutDown && volumeConfirm && rsiConfirmDown && macdConfirmDown) {
+                    if (pattern.type === 'descending' || pattern.type === 'symmetric') {
+                        signals[breakoutIdx] = -1;
+                    }
+                }
+            }
+            
+            return signals;
+        }
+        
+        // ==================== 回測引擎 ====================
+        
+        function runBacktest(candles, signals, config) {
+            const { capital, feeRate, strategy, dcaAmount } = config;
+            
+            let cash = capital;
+            let position = 0;
+            let equity = capital;
+            let entryPrice = 0;
+            
+            const trades = [];
+            const equityCurve = [{ time: candles[0].time, equity: capital }];
+            
+            let peakEquity = capital;
+            let maxDrawdown = 0;
+            let wins = 0;
+            let losses = 0;
+            let totalProfit = 0;
+            let totalLoss = 0;
+            
+            for (let i = 0; i < candles.length; i++) {
+                const price = candles[i].close;
+                const time = candles[i].time;
+                const signal = signals[i];
+                
+                // DCA 和智能 DCA 策略特殊處理
+                if ((strategy === 'dca' || strategy === 'smart_dca') && signal >= 2) {
+                    let amount = dcaAmount;
+                    
+                    // 智能 DCA：根據信號調整金額
+                    if (signal === 3) amount = dcaAmount * 2;  // 加倍
+                    if (signal === 4) amount = dcaAmount * 0.5; // 減半
+                    
+                    amount = Math.min(amount, cash);
+                    if (amount > 10) {
+                        const fee = amount * feeRate / 100;
+                        const qty = (amount - fee) / price;
+                        position += qty;
+                        cash -= amount;
+                        
+                        trades.push({
+                            time,
+                            type: 'buy',
+                            price,
+                            qty,
+                            pnl: null,
+                            equity: cash + position * price
+                        });
+                    }
+                }
+                // 一般策略
+                else if (signal === 1 && position === 0) {
+                    // 買入
+                    const fee = cash * feeRate / 100;
+                    const qty = (cash - fee) / price;
+                    position = qty;
+                    entryPrice = price;
+                    cash = 0;
+                    
+                    trades.push({
+                        time,
+                        type: 'buy',
+                        price,
+                        qty,
+                        pnl: null,
+                        equity: position * price
+                    });
+                }
+                else if (signal === -1 && position > 0) {
+                    // 賣出
+                    const revenue = position * price;
+                    const fee = revenue * feeRate / 100;
+                    const pnl = revenue - fee - (position * entryPrice);
+                    const pnlPercent = (price - entryPrice) / entryPrice * 100;
+                    
+                    cash = revenue - fee;
+                    
+                    trades.push({
+                        time,
+                        type: 'sell',
+                        price,
+                        qty: position,
+                        pnl,
+                        pnlPercent,
+                        equity: cash
+                    });
+                    
+                    if (pnl > 0) {
+                        wins++;
+                        totalProfit += pnl;
+                    } else {
+                        losses++;
+                        totalLoss += Math.abs(pnl);
+                    }
+                    
+                    position = 0;
+                    entryPrice = 0;
+                }
+                
+                // 更新權益
+                equity = cash + position * price;
+                equityCurve.push({ time, equity });
+                
+                // 計算最大回撤
+                if (equity > peakEquity) {
+                    peakEquity = equity;
+                }
+                const drawdown = (peakEquity - equity) / peakEquity * 100;
+                if (drawdown > maxDrawdown) {
+                    maxDrawdown = drawdown;
+                }
+            }
+            
+            // 最終強制平倉
+            const finalPrice = candles[candles.length - 1].close;
+            if (position > 0) {
+                const revenue = position * finalPrice;
+                const fee = revenue * feeRate / 100;
+                cash = revenue - fee;
+                equity = cash;
+            }
+            
+            // 計算統計
+            const totalReturn = ((equity - capital) / capital) * 100;
+            const days = (candles[candles.length - 1].time - candles[0].time) / (1000 * 60 * 60 * 24);
+            const annualReturn = (Math.pow(equity / capital, 365 / days) - 1) * 100;
+            
+            // 夏普比率（簡化計算）
+            const returns = [];
+            for (let i = 1; i < equityCurve.length; i++) {
+                returns.push((equityCurve[i].equity - equityCurve[i-1].equity) / equityCurve[i-1].equity);
+            }
+            const avgReturn = returns.reduce((a, b) => a + b, 0) / returns.length;
+            const stdReturn = Math.sqrt(returns.reduce((sum, r) => sum + Math.pow(r - avgReturn, 2), 0) / returns.length);
+            const sharpeRatio = stdReturn > 0 ? (avgReturn / stdReturn) * Math.sqrt(365) : 0;
+            
+            const totalTrades = trades.filter(t => t.type === 'sell').length;
+            const winRate = totalTrades > 0 ? (wins / totalTrades) * 100 : 0;
+            const profitFactor = totalLoss > 0 ? totalProfit / totalLoss : totalProfit > 0 ? Infinity : 0;
+            
+            return {
+                trades,
+                equityCurve,
+                stats: {
+                    totalReturn,
+                    annualReturn,
+                    maxDrawdown,
+                    sharpeRatio,
+                    winRate,
+                    totalTrades,
+                    profitFactor,
+                    finalEquity: equity
+                }
+            };
+        }
+        
+        // ==================== UI 控制 ====================
+        
+        let equityChart = null;
+        let selectedStrategy = 'sma_cross';
+        
+        // 策略卡片選擇
+        document.querySelectorAll('.strategy-card').forEach(card => {
+            card.addEventListener('click', () => {
+                document.querySelectorAll('.strategy-card').forEach(c => c.classList.remove('active'));
+                card.classList.add('active');
+                selectedStrategy = card.dataset.strategy;
+            });
+        });
+        
+        // 取得策略參數
+        function getStrategyParams() {
+            switch (selectedStrategy) {
+                // 趨勢跟隨策略
+                case 'sma_cross':
+                    return {
+                        short: parseInt(document.getElementById('sma_short').value),
+                        long: parseInt(document.getElementById('sma_long').value)
+                    };
+                case 'ema_cross':
+                    return {
+                        short: parseInt(document.getElementById('ema_short').value),
+                        long: parseInt(document.getElementById('ema_long').value)
+                    };
+                case 'macd':
+                    return {
+                        fast: parseInt(document.getElementById('macd_fast').value),
+                        slow: parseInt(document.getElementById('macd_slow').value),
+                        signal: parseInt(document.getElementById('macd_signal').value)
+                    };
+                case 'adx_trend':
+                    return {
+                        period: parseInt(document.getElementById('adx_period').value),
+                        threshold: parseInt(document.getElementById('adx_threshold').value)
+                    };
+                    
+                // 震盪指標策略
+                case 'rsi':
+                    return {
+                        period: parseInt(document.getElementById('rsi_period').value),
+                        oversold: parseInt(document.getElementById('rsi_oversold').value),
+                        overbought: parseInt(document.getElementById('rsi_overbought').value)
+                    };
+                case 'bollinger':
+                    return {
+                        period: parseInt(document.getElementById('bb_period').value),
+                        std: parseFloat(document.getElementById('bb_std').value)
+                    };
+                    
+                // 價量複合策略
+                case 'vwap':
+                    return {
+                        period: parseInt(document.getElementById('vwap_period').value)
+                    };
+                case 'mfi':
+                    return {
+                        period: parseInt(document.getElementById('mfi_period').value),
+                        oversold: parseInt(document.getElementById('mfi_oversold').value),
+                        overbought: parseInt(document.getElementById('mfi_overbought').value)
+                    };
+                case 'obv':
+                    return {
+                        short: parseInt(document.getElementById('obv_short').value),
+                        long: parseInt(document.getElementById('obv_long').value)
+                    };
+                case 'ad_line':
+                    return {
+                        short: parseInt(document.getElementById('ad_short').value),
+                        long: parseInt(document.getElementById('ad_long').value)
+                    };
+                    
+                // 背離策略
+                case 'rsi_divergence':
+                    return {
+                        period: parseInt(document.getElementById('rsi_div_period').value),
+                        lookback: parseInt(document.getElementById('rsi_div_lookback').value)
+                    };
+                case 'obv_divergence':
+                    return {
+                        lookback: parseInt(document.getElementById('obv_div_lookback').value)
+                    };
+                case 'mfi_divergence':
+                    return {
+                        period: parseInt(document.getElementById('mfi_div_period').value),
+                        lookback: parseInt(document.getElementById('mfi_div_lookback').value)
+                    };
+                    
+                // 複合策略
+                case 'macd_rsi_combo':
+                    return {
+                        rsi_period: parseInt(document.getElementById('combo_rsi_period').value),
+                        rsi_low: parseInt(document.getElementById('combo_rsi_low').value),
+                        rsi_high: parseInt(document.getElementById('combo_rsi_high').value)
+                    };
+                case 'triple_screen':
+                    return {
+                        rsi_period: parseInt(document.getElementById('ts_rsi_period').value)
+                    };
+                case 'vwap_mfi_combo':
+                    return {
+                        mfi_period: parseInt(document.getElementById('vwap_mfi_period').value),
+                        mfi_threshold: parseInt(document.getElementById('vwap_mfi_threshold').value)
+                    };
+                    
+                // 定投策略
+                case 'dca':
+                    return {
+                        interval: parseInt(document.getElementById('dca_interval').value),
+                        amount: parseFloat(document.getElementById('dca_amount').value)
+                    };
+                case 'smart_dca':
+                    return {
+                        interval: parseInt(document.getElementById('sdca_interval').value),
+                        amount: parseFloat(document.getElementById('sdca_base').value),
+                        rsi_low: parseInt(document.getElementById('sdca_rsi_low').value),
+                        rsi_high: parseInt(document.getElementById('sdca_rsi_high').value)
+                    };
+                    
+                // K線三角形態策略
+                case 'sym_triangle':
+                    return {
+                        lookback: parseInt(document.getElementById('sym_lookback').value),
+                        min_touches: parseInt(document.getElementById('sym_touches').value),
+                        volume_confirm: document.getElementById('sym_vol_confirm').checked
+                    };
+                case 'asc_triangle':
+                    return {
+                        lookback: parseInt(document.getElementById('asc_lookback').value),
+                        min_touches: parseInt(document.getElementById('asc_touches').value),
+                        volume_confirm: document.getElementById('asc_vol_confirm').checked
+                    };
+                case 'desc_triangle':
+                    return {
+                        lookback: parseInt(document.getElementById('desc_lookback').value),
+                        min_touches: parseInt(document.getElementById('desc_touches').value),
+                        volume_confirm: document.getElementById('desc_vol_confirm').checked
+                    };
+                case 'all_triangles':
+                    return {
+                        lookback: parseInt(document.getElementById('all_lookback').value),
+                        min_touches: parseInt(document.getElementById('all_touches').value),
+                        volume_confirm: document.getElementById('all_vol_confirm').checked
+                    };
+                case 'triangle_rsi':
+                    return {
+                        lookback: parseInt(document.getElementById('tri_rsi_lookback').value),
+                        min_touches: parseInt(document.getElementById('tri_rsi_touches').value),
+                        volume_confirm: true
+                    };
+                case 'triangle_macd':
+                    return {
+                        lookback: parseInt(document.getElementById('tri_macd_lookback').value),
+                        min_touches: parseInt(document.getElementById('tri_macd_touches').value),
+                        volume_confirm: true
+                    };
+                case 'triangle_multi':
+                    return {
+                        lookback: parseInt(document.getElementById('tri_multi_lookback').value),
+                        min_touches: parseInt(document.getElementById('tri_multi_touches').value),
+                        volume_confirm: true
+                    };
+                    
+                default:
+                    return {};
+            }
+        }
+        
+        // 從幣安取得 K 線數據（支援長期歷史數據分批請求）
+        async function fetchKlines(symbol, interval, startTimeValue) {
+            const endTime = Date.now();
+            let startTime;
+            
+            // 判斷是年份還是天數
+            if (startTimeValue >= 2017 && startTimeValue <= 2030) {
+                // 年份模式
+                startTime = new Date(`${startTimeValue}-01-01T00:00:00Z`).getTime();
+            } else {
+                // 天數模式
+                startTime = endTime - startTimeValue * 24 * 60 * 60 * 1000;
+            }
+            
+            const allCandles = [];
+            let currentStartTime = startTime;
+            const limit = 1000; // 幣安 API 單次最多 1000 根
+            
+            // 計算每根 K 線的時間間隔（毫秒）
+            const intervalMs = {
+                '1h': 60 * 60 * 1000,
+                '4h': 4 * 60 * 60 * 1000,
+                '1d': 24 * 60 * 60 * 1000,
+                '1w': 7 * 24 * 60 * 60 * 1000
+            }[interval];
+            
+            // 預估需要請求的次數
+            const totalBars = Math.ceil((endTime - startTime) / intervalMs);
+            const totalRequests = Math.ceil(totalBars / limit);
+            let currentRequest = 0;
+            
+            console.log(`預計需要 ${totalRequests} 次請求，共約 ${totalBars} 根 K 線`);
+            
+            while (currentStartTime < endTime) {
+                const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&startTime=${currentStartTime}&endTime=${endTime}&limit=${limit}`;
+                
+                try {
+                    const response = await fetch(url);
+                    
+                    if (!response.ok) {
+                        throw new Error(`API 錯誤: ${response.status}`);
+                    }
+                    
+                    const data = await response.json();
+                    
+                    if (data.length === 0) break;
+                    
+                    const candles = data.map(k => ({
+                        time: k[0],
+                        open: parseFloat(k[1]),
+                        high: parseFloat(k[2]),
+                        low: parseFloat(k[3]),
+                        close: parseFloat(k[4]),
+                        volume: parseFloat(k[5])
+                    }));
+                    
+                    allCandles.push(...candles);
+                    
+                    // 更新進度
+                    currentRequest++;
+                    const progress = Math.min(30 + (currentRequest / totalRequests) * 30, 60);
+                    document.getElementById('progressFill').style.width = progress + '%';
+                    document.getElementById('loadingText').textContent = 
+                        `正在載入數據... ${allCandles.length} 根 K 線 (${currentRequest}/${totalRequests})`;
+                    
+                    // 下一次請求的起始時間
+                    currentStartTime = data[data.length - 1][0] + intervalMs;
+                    
+                    // 如果返回的數據少於 limit，表示已經到最新了
+                    if (data.length < limit) break;
+                    
+                    // 避免請求過快被限制
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    
+                } catch (error) {
+                    console.error('請求失敗:', error);
+                    throw error;
+                }
+            }
+            
+            console.log(`共取得 ${allCandles.length} 根 K 線`);
+            return allCandles;
+        }
+        
+        // 更新圖表（加入買入持有對比）
+        function updateChart(equityCurve, candles) {
+            const ctx = document.getElementById('equityChart').getContext('2d');
+            
+            if (equityChart) {
+                equityChart.destroy();
+            }
+            
+            // 計算買入持有的權益曲線
+            const initialCapital = equityCurve[0].equity;
+            const initialPrice = candles[0].close;
+            const holdingQty = initialCapital / initialPrice;
+            
+            const buyHoldCurve = candles.map(c => ({
+                time: c.time,
+                equity: holdingQty * c.close
+            }));
+            
+            equityChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: equityCurve.map(d => new Date(d.time)),
+                    datasets: [
+                        {
+                            label: '策略權益',
+                            data: equityCurve.map(d => d.equity),
+                            borderColor: '#f0b90b',
+                            backgroundColor: 'rgba(240, 185, 11, 0.1)',
+                            fill: true,
+                            tension: 0.1,
+                            pointRadius: 0,
+                            borderWidth: 2
+                        },
+                        {
+                            label: '買入持有',
+                            data: buyHoldCurve.map(d => d.equity),
+                            borderColor: '#8a8a9a',
+                            backgroundColor: 'transparent',
+                            fill: false,
+                            tension: 0.1,
+                            pointRadius: 0,
+                            borderWidth: 1.5,
+                            borderDash: [5, 5]
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    },
+                    plugins: {
+                        legend: { 
+                            display: true,
+                            labels: { color: '#8a8a9a' }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': $' + context.raw.toLocaleString(undefined, {
+                                        minimumFractionDigits: 2,
+                                        maximumFractionDigits: 2
+                                    });
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            ticks: { color: '#8a8a9a', maxTicksLimit: 10 }
+                        },
+                        y: {
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            ticks: { 
+                                color: '#8a8a9a',
+                                callback: v => '$' + v.toLocaleString()
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // 更新統計顯示
+        function updateStats(stats, candles) {
+            const setValueWithColor = (id, value, isPercent = true) => {
+                const el = document.getElementById(id);
+                el.textContent = isPercent ? value.toFixed(2) + '%' : value.toFixed(2);
+                el.classList.remove('profit', 'loss');
+                if (value > 0) el.classList.add('profit');
+                else if (value < 0) el.classList.add('loss');
+            };
+            
+            // 回測期間
+            const startDate = new Date(candles[0].time).toLocaleDateString('zh-TW');
+            const endDate = new Date(candles[candles.length - 1].time).toLocaleDateString('zh-TW');
+            document.getElementById('backtestPeriod').textContent = `${startDate} ~ ${endDate}`;
+            document.getElementById('totalBars').textContent = candles.length.toLocaleString();
+            
+            // 計算買入持有報酬
+            const buyHoldReturn = ((candles[candles.length - 1].close - candles[0].close) / candles[0].close) * 100;
+            setValueWithColor('buyHoldReturn', buyHoldReturn);
+            
+            // 策略 vs 買入持有
+            const strategyVsHold = stats.totalReturn - buyHoldReturn;
+            setValueWithColor('strategyVsHold', strategyVsHold);
+            
+            setValueWithColor('totalReturn', stats.totalReturn);
+            setValueWithColor('annualReturn', stats.annualReturn);
+            setValueWithColor('maxDrawdown', -stats.maxDrawdown);
+            document.getElementById('sharpeRatio').textContent = stats.sharpeRatio.toFixed(2);
+            document.getElementById('winRate').textContent = stats.winRate.toFixed(1) + '%';
+            document.getElementById('totalTrades').textContent = stats.totalTrades;
+            document.getElementById('profitFactor').textContent = 
+                stats.profitFactor === Infinity ? '∞' : stats.profitFactor.toFixed(2);
+            document.getElementById('finalEquity').textContent = '$' + stats.finalEquity.toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        }
+        
+        // 更新交易紀錄
+        function updateTrades(trades) {
+            const tbody = document.getElementById('tradesBody');
+            tbody.innerHTML = '';
+            
+            trades.slice().reverse().forEach(trade => {
+                const row = document.createElement('tr');
+                const time = new Date(trade.time).toLocaleString('zh-TW');
+                const pnlDisplay = trade.pnl !== null 
+                    ? `<span style="color: ${trade.pnl >= 0 ? 'var(--profit)' : 'var(--loss)'}">
+                         ${trade.pnl >= 0 ? '+' : ''}$${trade.pnl.toFixed(2)}
+                       </span>`
+                    : '-';
+                
+                row.innerHTML = `
+                    <td>${time}</td>
+                    <td><span class="tag ${trade.type}">${trade.type === 'buy' ? '買入' : '賣出'}</span></td>
+                    <td>$${trade.price.toFixed(4)}</td>
+                    <td>${trade.qty.toFixed(6)}</td>
+                    <td>${pnlDisplay}</td>
+                    <td>$${trade.equity.toFixed(2)}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+        
+        // 執行回測
+        document.getElementById('runBacktest').addEventListener('click', async () => {
+            const btn = document.getElementById('runBacktest');
+            const loading = document.getElementById('loading');
+            const results = document.getElementById('resultsContainer');
+            const welcome = document.getElementById('welcomePanel');
+            const progressFill = document.getElementById('progressFill');
+            
+            btn.disabled = true;
+            loading.classList.add('active');
+            results.classList.add('hidden');
+            welcome.classList.add('hidden');
+            progressFill.style.width = '10%';
+            
+            try {
+                const symbol = document.getElementById('symbol').value;
+                const interval = document.getElementById('interval').value;
+                const startTimeValue = parseInt(document.getElementById('startTime').value);
+                const capital = parseFloat(document.getElementById('capital').value);
+                const feeRate = parseFloat(document.getElementById('fee').value);
+                
+                progressFill.style.width = '30%';
+                document.getElementById('loadingText').textContent = '正在連接幣安 API...';
+                
+                // 取得數據
+                const candles = await fetchKlines(symbol, interval, startTimeValue);
+                progressFill.style.width = '60%';
+                document.getElementById('loadingText').textContent = `正在計算策略信號... (${candles.length} 根 K 線)`;
+                
+                // 生成信號
+                const params = getStrategyParams();
+                const signals = strategies[selectedStrategy](candles, params);
+                progressFill.style.width = '80%';
+                document.getElementById('loadingText').textContent = '正在執行回測計算...';
+                
+                // 執行回測
+                const config = {
+                    capital,
+                    feeRate,
+                    strategy: selectedStrategy,
+                    dcaAmount: params.amount || 0
+                };
+                
+                const result = runBacktest(candles, signals, config);
+                progressFill.style.width = '100%';
+                
+                // 更新 UI
+                setTimeout(() => {
+                    updateStats(result.stats, candles);
+                    updateChart(result.equityCurve, candles);
+                    updateTrades(result.trades);
+                    
+                    loading.classList.remove('active');
+                    results.classList.remove('hidden');
+                    btn.disabled = false;
+                    progressFill.style.width = '0%';
+                }, 300);
+                
+            } catch (error) {
+                console.error('回測錯誤:', error);
+                alert('回測執行失敗：' + error.message);
+                loading.classList.remove('active');
+                welcome.classList.remove('hidden');
+                btn.disabled = false;
+                progressFill.style.width = '0%';
+            }
+        });
+    </script>
+</body>
+</html>
